@@ -1,39 +1,30 @@
-import { interval, of } from "rxjs";
-import { map, skip, take, tap } from "rxjs/operators";
+import { fromEvent, zip } from "rxjs";
+import { map } from "rxjs/operators";
 
-const sequence1$ = interval(1000);
-/*
-sequence$  --0--1--2--3--4--
-      tap((x)=>x**2)
-           --0--1--2--3--4--
-      map((x)=>x**2)
-           --0--1--4--9--16--
-      tap((x)=>x**2)
-sequence2$ --0--1--4--9--16--
-
- */
-// const sequence2$ = sequence$.pipe(
-//     tap((x) => x.name = 'Vlad'),
-//     map((x) => ({...x, age: 33})),
-//     tap((x) => x.age = 44));
-// sequence2$
-//     .subscribe((v) => {
-//         console.log(v);
-//     })
+const touchStart$ = getX(fromEvent<TouchEvent>(document, 'touchstart'));
+const touchEnd$ = getX(fromEvent<TouchEvent>(document, 'touchend'));
+const swipe$ = swipe(zip(touchStart$, touchEnd$));
+swipe$.subscribe((value) => {
+    if (value > 0) {
+        console.log('Swipe left');
+        return;
+    }
+    console.log('Swipe right');
+});
 
 
-/*
- sequence$   --0--1--2--3--4--5--6--7--8--
-            skip(4)
-             --------------4--5--6--7--8--
-            take(3)
-             --------------4--5--6|
- */
-sequence1$
-    .pipe(
-        skip(4),
-        take(3)
-    )
-    .subscribe((v) => {
-        console.log(v);
-    })
+export function getX(source$) {
+    return source$
+        .pipe(
+            map(({changedTouches}: TouchEvent) => changedTouches[0].clientX)
+        )
+}
+
+export function swipe(source1$) {
+    return source1$
+        .pipe(
+            map(([starX, endX]: [number, number]) => {
+                return starX - endX;
+            })
+        )
+}
