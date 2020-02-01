@@ -1,56 +1,41 @@
-import { from, interval, Observable, Subscriber } from "rxjs";
-import { filter } from "rxjs/operators";
+import { interval, Observable, Subscriber } from "rxjs";
 
-// const sequence$ = new Observable();
-// sequence$.source = interval(2000);
-// sequence$.operator = {
-//     call(subscriber: Subscriber<unknown>, source: any): void {
-//         source.subscribe(subscriber);
-//     }
-// }
-//
-// sequence$.subscribe((v) => {
-//     console.log(v);
-// })
+class SkipLimitSubscriber extends Subscriber<any> {
 
-const sequence$ = from([1, 2, 3, 4, 5])
+    private _interval = 1;
+    private _count = 1;
 
-class DoubleSubscribe extends Subscriber<number> {
-    next(value: number): void {
-        super.next(value * 2);
+    constructor(subscriber: Subscriber<any>, private  _skip: number, private _limit: number) {
+        super(subscriber);
+    }
+
+    public next(value: any): void {
+        const borderLeft = this._interval * (this._skip + this._limit) - this._limit;
+        const borderRight = borderLeft + this._limit;
+        if (borderLeft < this._count && this._count <= borderRight) {
+            super.next(value);
+            this._count++;
+            if (borderRight < this._count) {
+                this._interval++;
+            }
+            return;
+        }
+        this._count++;
     }
 }
 
-// sequence$.subscribe(new DoubleSubscribe((v) => console.log(v)))
-
-// const double = (source: Observable<number>) => {
-//     const sequence$ = new Observable();
-//     sequence$.source = source;
-//     sequence$.operator = {
-//         call(subscriber: Subscriber<unknown>, source: any): void {
-//             source.subscribe(new DoubleSubscribe(subscriber));
-//         }
-//     }
-//     return sequence$;
-// }
-
-const double = (source: Observable<number>) => {
-    return source.lift({
-        call(subscriber: Subscriber<unknown>, source: any): void {
-            source.subscribe(new DoubleSubscribe(subscriber));
-        }
-    })
+function skipLimit<T>(skip: number, limit: number) {
+    return (source: Observable<T>) => {
+        return source.lift({
+            call(subscriber: Subscriber<T>, source: Observable<T>): void {
+                source.subscribe(new SkipLimitSubscriber(subscriber, skip, limit))
+            }
+        })
+    }
 }
 
-const pipe = (...fns: Function[]) => (source: Observable<any>) =>
-    fns.reduce((acc, fn) => fn(acc), source);
-
-const doubleWithFilter = pipe(
-    double,
-    filter((v: number) => v % 3 === 0)
-)
-
-sequence$.pipe(doubleWithFilter)
+interval(1000)
+    .pipe(skipLimit(3, 4))
     .subscribe((v) => {
         console.log(v);
     })
