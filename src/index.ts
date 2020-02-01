@@ -1,41 +1,55 @@
-import { interval, Observable, Subscriber } from "rxjs";
+import { fromEvent } from "rxjs";
+import {
+    bufferCount,
+    concatAll,
+    debounceTime,
+    distinctUntilChanged,
+    filter, last,
+    map,
+    pluck, reduce, scan,
+    switchMap
+} from "rxjs/operators";
+import { ajax } from "rxjs/ajax";
 
-class SkipLimitSubscriber extends Subscriber<any> {
-
-    private _interval = 1;
-    private _count = 1;
-
-    constructor(subscriber: Subscriber<any>, private  _skip: number, private _limit: number) {
-        super(subscriber);
-    }
-
-    public next(value: any): void {
-        const borderLeft = this._interval * (this._skip + this._limit) - this._limit;
-        const borderRight = borderLeft + this._limit;
-        if (borderLeft < this._count && this._count <= borderRight) {
-            super.next(value);
-            this._count++;
-            if (borderRight < this._count) {
-                this._interval++;
-            }
-            return;
-        }
-        this._count++;
-    }
-}
-
-function skipLimit<T>(skip: number, limit: number) {
-    return (source: Observable<T>) => {
-        return source.lift({
-            call(subscriber: Subscriber<T>, source: Observable<T>): void {
-                source.subscribe(new SkipLimitSubscriber(subscriber, skip, limit))
-            }
+const container = document.querySelector('.container');
+const inputElement = document.querySelector('input');
+fromEvent<InputEvent>(inputElement, 'input')
+    .pipe(
+        debounceTime(300),
+        pluck('target', 'value'),
+        filter(Boolean),
+        map((text: string) => text.trim()),
+        filter((text: string) => text.length > 3),
+        distinctUntilChanged(),
+        switchMap((text: string) => {
+            return ajax(` https://api.github.com/search/repositories?q=${text}`)
+                .pipe(
+                    pluck('response', 'items'), // [1,2,3]
+                    concatAll(), // 1,2,3
+                    map(createCard),
+                    bufferCount(3), // [1,2,3], [2,3,4],
+                    reduce((resultStr, htmlString) => {
+                        return resultStr += createRow(htmlString);
+                    }, ''),
+                )
         })
-    }
+    )
+    .subscribe((html) => {
+        container.innerHTML = html
+    })
+
+function createCard({name, description, owner: {avatar_url}}) {
+    return `<div class="col-md-4">
+   <div class="card">
+   <img class="card-img-top" src=${avatar_url} alt="">
+   <div class="card-body">
+   <h5 class="card-title">${name}</h5>
+   <p class="card-text">${description}</p>
+</div>
+</div>
+</div>`
 }
 
-interval(1000)
-    .pipe(skipLimit(3, 4))
-    .subscribe((v) => {
-        console.log(v);
-    })
+function createRow(htmlStringArr) {
+    return `<div class="row">${htmlStringArr.join(' ')}</div>`
+}
