@@ -1,30 +1,49 @@
-import { fromEvent, zip } from "rxjs";
-import { map } from "rxjs/operators";
+import { combineLatest, fromEvent, Observable } from "rxjs";
+import { map, startWith, tap, withLatestFrom } from "rxjs/operators";
 
-const touchStart$ = getX(fromEvent<TouchEvent>(document, 'touchstart'));
-const touchEnd$ = getX(fromEvent<TouchEvent>(document, 'touchend'));
-const swipe$ = swipe(zip(touchStart$, touchEnd$));
-swipe$.subscribe((value) => {
-    if (value > 0) {
-        console.log('Swipe left');
-        return;
-    }
-    console.log('Swipe right');
-});
+const initialValue = 5;
+const quality$ = getValue(fromEvent($('#quality').slider(), 'change'), initialValue, colorizeSlider);
+const rating$ = getValue(fromEvent($('#rating').slider(), 'change'), initialValue, colorizeSlider);
+const actual$ = getValue(fromEvent($('#actual').slider(), 'change'), initialValue, colorizeSlider);
 
+const result$ = combineLatest([quality$, rating$, actual$])
+    .pipe(
+        map(([quality, rating, actual]: number[]) => {
+            return Math.round((quality + rating + actual) / 3 * 10);
+        })
+    );
 
-export function getX(source$) {
-    return source$
-        .pipe(
-            map(({changedTouches}: TouchEvent) => changedTouches[0].clientX)
-        )
+function getValue(source$, initialValue, sideCb): Observable<number> {
+    return source$.pipe(
+        map(({value: {newValue}, delegateTarget: {previousElementSibling}}: any) => {
+            return {value: newValue, element: previousElementSibling}
+        }),
+        tap(sideCb),
+        map(({value}) => value),
+        startWith(initialValue)
+    )
 }
 
-export function swipe(source1$) {
-    return source1$
-        .pipe(
-            map(([starX, endX]: [number, number]) => {
-                return starX - endX;
-            })
-        )
+fromEvent<MouseEvent>(document.querySelector('#send-result'), 'click')
+    .pipe(
+        withLatestFrom(result$),
+        map(([_e, value]: [MouseEvent, number]) => value)
+    )
+    .subscribe((result) => {
+        console.log(result);
+    })
+
+function colorizeSlider({value, element}) {
+    const slider = element.querySelector('.slider-track');
+    const v = value * 10;
+    slider.classList.remove('bad', 'good', 'warn');
+    if (v < 40) {
+        slider.classList.add('bad');
+        return
+    }
+    if (v >= 40 && v <= 70) {
+        slider.classList.add('warn');
+        return
+    }
+    slider.classList.add('good');
 }
