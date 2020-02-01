@@ -1,25 +1,39 @@
-import { ajax, AjaxResponse } from "rxjs/ajax";
-import { debounceTime, map } from "rxjs/operators";
-import { forkJoin, fromEvent, Observable } from "rxjs";
+import { interval, of } from "rxjs";
+import { map, skip, take, tap } from "rxjs/operators";
+
+const sequence1$ = interval(1000);
+/*
+sequence$  --0--1--2--3--4--
+      tap((x)=>x**2)
+           --0--1--2--3--4--
+      map((x)=>x**2)
+           --0--1--4--9--16--
+      tap((x)=>x**2)
+sequence2$ --0--1--4--9--16--
+
+ */
+// const sequence2$ = sequence$.pipe(
+//     tap((x) => x.name = 'Vlad'),
+//     map((x) => ({...x, age: 33})),
+//     tap((x) => x.age = 44));
+// sequence2$
+//     .subscribe((v) => {
+//         console.log(v);
+//     })
 
 
-const request$ = ajax('http://learn.javascript.ru/courses/groups/api/participants?key=1i7qske')
+/*
+ sequence$   --0--1--2--3--4--5--6--7--8--
+            skip(4)
+             --------------4--5--6--7--8--
+            take(3)
+             --------------4--5--6|
+ */
+sequence1$
     .pipe(
-        map((res: AjaxResponse) => res.response),
-    );
-
-forkJoin([request$, request$]).subscribe(([req1, req2]) => {
-    console.log(req1, req2);
-})
-
-// const input = document.querySelector('input')
-// const search$: Observable<string> = fromEvent<InputEvent>(input, 'input')
-//     .pipe(
-//         debounceTime(300),
-//         map((e: InputEvent) => {
-//             return (e.target as HTMLInputElement).value;
-//         })
-//     )
-// search$.subscribe((v) => {
-//     console.log(v);
-// })
+        skip(4),
+        take(3)
+    )
+    .subscribe((v) => {
+        console.log(v);
+    })
