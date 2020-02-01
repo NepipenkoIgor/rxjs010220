@@ -1,49 +1,56 @@
-import { combineLatest, fromEvent, Observable } from "rxjs";
-import { map, startWith, tap, withLatestFrom } from "rxjs/operators";
+import { from, interval, Observable, Subscriber } from "rxjs";
+import { filter } from "rxjs/operators";
 
-const initialValue = 5;
-const quality$ = getValue(fromEvent($('#quality').slider(), 'change'), initialValue, colorizeSlider);
-const rating$ = getValue(fromEvent($('#rating').slider(), 'change'), initialValue, colorizeSlider);
-const actual$ = getValue(fromEvent($('#actual').slider(), 'change'), initialValue, colorizeSlider);
+// const sequence$ = new Observable();
+// sequence$.source = interval(2000);
+// sequence$.operator = {
+//     call(subscriber: Subscriber<unknown>, source: any): void {
+//         source.subscribe(subscriber);
+//     }
+// }
+//
+// sequence$.subscribe((v) => {
+//     console.log(v);
+// })
 
-const result$ = combineLatest([quality$, rating$, actual$])
-    .pipe(
-        map(([quality, rating, actual]: number[]) => {
-            return Math.round((quality + rating + actual) / 3 * 10);
-        })
-    );
+const sequence$ = from([1, 2, 3, 4, 5])
 
-function getValue(source$, initialValue, sideCb): Observable<number> {
-    return source$.pipe(
-        map(({value: {newValue}, delegateTarget: {previousElementSibling}}: any) => {
-            return {value: newValue, element: previousElementSibling}
-        }),
-        tap(sideCb),
-        map(({value}) => value),
-        startWith(initialValue)
-    )
+class DoubleSubscribe extends Subscriber<number> {
+    next(value: number): void {
+        super.next(value * 2);
+    }
 }
 
-fromEvent<MouseEvent>(document.querySelector('#send-result'), 'click')
-    .pipe(
-        withLatestFrom(result$),
-        map(([_e, value]: [MouseEvent, number]) => value)
-    )
-    .subscribe((result) => {
-        console.log(result);
+// sequence$.subscribe(new DoubleSubscribe((v) => console.log(v)))
+
+// const double = (source: Observable<number>) => {
+//     const sequence$ = new Observable();
+//     sequence$.source = source;
+//     sequence$.operator = {
+//         call(subscriber: Subscriber<unknown>, source: any): void {
+//             source.subscribe(new DoubleSubscribe(subscriber));
+//         }
+//     }
+//     return sequence$;
+// }
+
+const double = (source: Observable<number>) => {
+    return source.lift({
+        call(subscriber: Subscriber<unknown>, source: any): void {
+            source.subscribe(new DoubleSubscribe(subscriber));
+        }
     })
-
-function colorizeSlider({value, element}) {
-    const slider = element.querySelector('.slider-track');
-    const v = value * 10;
-    slider.classList.remove('bad', 'good', 'warn');
-    if (v < 40) {
-        slider.classList.add('bad');
-        return
-    }
-    if (v >= 40 && v <= 70) {
-        slider.classList.add('warn');
-        return
-    }
-    slider.classList.add('good');
 }
+
+const pipe = (...fns: Function[]) => (source: Observable<any>) =>
+    fns.reduce((acc, fn) => fn(acc), source);
+
+const doubleWithFilter = pipe(
+    double,
+    filter((v: number) => v % 3 === 0)
+)
+
+sequence$.pipe(doubleWithFilter)
+    .subscribe((v) => {
+        console.log(v);
+    })
