@@ -15,30 +15,27 @@
           href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.6.2/css/bootstrap-slider.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/10.6.2/bootstrap-slider.min.js"></script>
     <style>
-        .slider-selection {
-            background-image: none;
-        }
-
-        .good div.slider-selection {
-            background-color: green !important;
-        }
-
-        .warn div.slider-selection {
-            background-color: orange !important;
-        }
-
-        .bad div.slider-selection {
-            background-color: red !important;
+        .error, input:focus.error {
+            border: 1px solid red;
         }
     </style>
 </head>
 <body>
-<div class="form-group">
-    <label for="search">Search Repo </label>
-    <input type="text" class="form-control" id="search" placeholder="Enter repo name">
-    <div class="container">
-
-    </div>
+<div class="row">
+    <form class="first-form col-md-3">
+        <div class="form-group">
+            <label for="userName">User name</label>
+            <input type="text" class="form-control" id="userName" aria-describedby="emailHelp">
+        </div>
+        <button  class="btn btn-primary">Submit</button>
+    </form>
+    <form class="second-form col-md-3">
+        <div class="form-group">
+            <label for="userName1">User name</label>
+            <input type="text" class="form-control" id="userName1" aria-describedby="emailHelp">
+        </div>
+        <button  class="btn btn-primary">Submit</button>
+    </form>
 </div>
 </body>
 </html>
