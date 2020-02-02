@@ -1,40 +1,39 @@
-import { interval, of, zip } from "rxjs";
-import { catchError, delay, map, retry, retryWhen, switchMap, tap } from "rxjs/operators";
+import { AsyncSubject, Observable } from "rxjs";
+import { ajax } from "rxjs/ajax";
 
-const sequence1$ = interval(1000);
-const sequence2$ = of('1', '2', '3', 4, '5', '6');
-zip(sequence1$, sequence2$)
-    .pipe(
-        switchMap(([_x, y]) => {
-            return of(y)
-                .pipe(map((y) => {
-                        return (y as any).toUpperCase();
-                    }),
-                    catchError((err, obs) => {
-                        console.log(err);
-                        return of('0');
-                    }),
-                )
-        })
-// tap(() => {
-//     console.log('After map')
-// }),
-//     retryWhen((err$) => err$.pipe(delay(5000))),
-//     catchError((err, obs) => {
-//         console.log(err);
-//         return of('0');
-//     }),
-// tap(()=>{
-//     console.log('After error')
-// })
-    ).subscribe(
-    (v) => {
-        console.log(v)
-    },
-    (err) => {
-        console.log(err)
-    },
-    () => {
-        console.log('Completed')
-    },
-);
+// const sequence$$ = new AsyncSubject();
+// sequence$$.subscribe((v)=>console.log('Sub 1', v));
+// sequence$$.subscribe((v)=>console.log('Sub 2', v));
+//
+// sequence$$.next(1);
+// sequence$$.next(2);
+// sequence$$.next(3);
+// sequence$$.next(4);
+//
+// setTimeout(()=>{
+//     sequence$$.complete();
+//     sequence$$.subscribe((v)=>console.log('Sub 3', v));
+// }, 5000)
+
+function getItems(url) {
+    let subject;
+    return new Observable((subscriber) => {
+        if (!subject) {
+            subject = new AsyncSubject();
+            ajax(url).subscribe(subject);
+        }
+        return subject.subscribe(subscriber)
+    })
+}
+
+const items$ = getItems('http://learn.javascript.ru/courses/groups/api/participants?key=1i7qske')
+
+items$.subscribe((v) => {
+    console.log(v);
+})
+
+setTimeout(() => {
+    items$.subscribe((v) => {
+        console.log(v);
+    })
+}, 5000)
